@@ -1,226 +1,225 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <windows.h>
+#include <iomanip>
+#include <string>
+#include <algorithm>
 using namespace std;
 
 class Bill
 {
 private:
-    string Item;
-    int Rate, Quantity;
+    string item;
+    int rate;
+    int quantity;
 
 public:
-    Bill() : Item(""), Rate(0), Quantity(0) {}
+    Bill() : item(""), rate(0), quantity(0) {}
 
-    void setItem(string item)
-    {
-        Item = item;
-    }
+    void setItem(const string &itemName) { item = itemName; }
+    void setRate(int itemRate) { rate = itemRate; }
+    void setQuantity(int itemQuantity) { quantity = itemQuantity; }
 
-    void setRate(int rate)
-    {
-        Rate = rate;
-    }
+    string getItem() const { return item; }
+    int getRate() const { return rate; }
+    int getQuantity() const { return quantity; }
 
-    void setQuant(int quant)
+    string format() const
     {
-        Quantity = quant;
-    }
-
-    string getItem()
-    {
-        return Item;
-    }
-
-    int getRate()
-    {
-        return Rate;
-    }
-
-    int getQuant()
-    {
-        return Quantity;
+        stringstream ss;
+        ss << item << " : " << rate << " : " << quantity;
+        return ss.str();
     }
 };
 
-void addItem(Bill b)
+void clearScreen()
 {
-    bool close = false;
-    while (!close)
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+
+void pause()
+{
+    cout << "Press Enter to continue...";
+    cin.ignore();
+    cin.get();
+}
+
+void addItem()
+{
+    clearScreen();
+    ofstream outFile("Bill.txt", ios::app);
+    if (!outFile)
     {
-        int choice;
-        cout << "\t1.Add." << endl;
-        cout << "\t2.close." << endl;
-        cout << "\tEnter Choice: ";
-        cin >> choice;
-
-        if (choice == 1)
-        {
-            system("cls");
-            string item;
-            int rate, quant;
-
-            cout << "\tEnter Item Name: ";
-            cin >> item;
-            b.setItem(item);
-
-            cout << "\tEnter Rate Of Item: ";
-            cin >> rate;
-            b.setRate(rate);
-
-            cout << "\tEnter Quantity Of Item: ";
-            cin >> quant;
-            b.setQuant(quant);
-
-            ofstream out("F:/Bill.txt", ios::app);
-            if (!out)
-            {
-                cout << "\tError: File Can't Open!" << endl;
-            }
-            else
-            {
-                out << "\t" << b.getItem() << " : " << b.getRate() << " : " << b.getQuant() << endl
-                    << endl;
-            }
-            out.close();
-            cout << "\tItem Added Successfuly" << endl;
-            Sleep(3000);
-        }
-
-        else if (choice == 2)
-        {
-            system("cls");
-            close = true;
-            cout << "\tBack To Main Menu!" << endl;
-            Sleep(3000);
-        }
+        cerr << "Error: Unable to open file for writing!" << endl;
+        pause();
+        return;
     }
+
+    string itemName;
+    int rate, quantity;
+
+    cout << "Enter Item Name: ";
+    cin.ignore();
+    getline(cin, itemName);
+    cout << "Enter Rate of Item: ";
+    cin >> rate;
+    cout << "Enter Quantity of Item: ";
+    cin >> quantity;
+
+    Bill newBill;
+    newBill.setItem(itemName);
+    newBill.setRate(rate);
+    newBill.setQuantity(quantity);
+
+    outFile << newBill.format() << endl;
+    outFile.close();
+
+    cout << "Item added successfully!" << endl;
+    pause();
 }
 
 void printBill()
 {
-    system("cls");
-    int count = 0;
-    bool close = false;
-    while (!close)
+    clearScreen();
+    int totalAmount = 0;
+
+    while (true)
     {
-        system("cls");
+        clearScreen();
         int choice;
-        cout << "\t1.Add Bill." << endl;
-        cout << "\t2.Close Session." << endl;
-        cout << "\tEnter Choice: ";
+        cout << "1. Add to Bill" << endl;
+        cout << "2. Finalize and Show Total Bill" << endl;
+        cout << "Enter your choice: ";
         cin >> choice;
 
         if (choice == 1)
         {
-            string item;
-            int quant;
-            cout << "\tEnter Item: ";
-            cin >> item;
-            cout << "\tEnter Quantity: ";
-            cin >> quant;
+            string itemName;
+            int quantity;
 
-            ifstream in("F:/Bill.txt");
-            ofstream out("F:/Bill.txt Temp.txt");
+            cout << "Enter Item Name: ";
+            cin.ignore(); // Clear buffer
+            getline(cin, itemName); // Handle multi-word names
+            cout << "Enter Quantity: ";
+            cin >> quantity;
+
+            ifstream inFile("Bill.txt");
+            ofstream tempFile("Bill_temp.txt");
+            if (!inFile || !tempFile)
+            {
+                cerr << "Error: Unable to access files!" << endl;
+                pause();
+                return;
+            }
 
             string line;
-            bool found = false;
+            bool itemFound = false;
 
-            while (getline(in, line))
+            while (getline(inFile, line))
             {
-                stringstream ss;
-                ss << line;
-                string itemName;
-                int itemRate, itemQuant;
+                stringstream ss(line);
+                string fileItem;
+                int fileRate, fileQuantity;
                 char delimiter;
-                ss >> itemName >> delimiter >> itemRate >> delimiter >> itemQuant;
 
-                if (item == itemName)
+                getline(ss, fileItem, ':'); // Extract item name
+                fileItem = fileItem.substr(0, fileItem.find_last_not_of(" \t") + 1); // Trim whitespace
+                ss >> fileRate >> delimiter >> fileQuantity;
+
+                if (fileItem == itemName)
                 {
-                    found = true;
-                    if (quant <= itemQuant)
-                    {
-                        int amount = itemRate * quant;
-                        cout << "\t Item | Rate | Quantity | Amount" << endl;
-                        cout << "\t" << itemName << "\t " << itemRate << "\t " << quant << "\t " << amount << endl;
-                        int newQuant = itemQuant - quant;
-                        itemQuant = newQuant;
-                        count += amount;
+                    itemFound = true;
 
-                        out << "\t" << itemName << " : " << itemRate << " : " << itemQuant << endl;
+                    if (quantity <= fileQuantity)
+                    {
+                        int amount = fileRate * quantity;
+                        totalAmount += amount;
+
+                        cout << setw(15) << "Item" << setw(10) << "Rate" << setw(10) << "Quantity" << setw(10) << "Amount" << endl;
+                        cout << setw(15) << fileItem << setw(10) << fileRate << setw(10) << quantity << setw(10) << amount << endl;
+
+                        fileQuantity -= quantity;
+
+                        if (fileQuantity > 0)
+                        {
+                            tempFile << fileItem << " : " << fileRate << " : " << fileQuantity << endl;
+                        }
                     }
                     else
                     {
-                        cout << "\tSorry, " << item << " Ended!" << endl;
+                        cout << "Insufficient quantity for item: " << fileItem << endl;
+                        tempFile << line << endl; // Write the original line
                     }
                 }
                 else
                 {
-                    out << line << endl;
+                    tempFile << line << endl;
                 }
             }
-            if (!found)
+
+            if (!itemFound)
             {
-                cout << "\tItem Not Available!" << endl;
+                cout << "Item not found in inventory!" << endl;
             }
-            out.close();
-            in.close();
-            remove("D:/Bill.txt");
-            rename("F:/Bill.txt Temp.txt", "F:/Bill.txt");
+
+            inFile.close();
+            tempFile.close();
+
+            // Replace the original file with the updated file
+            if (remove("Bill.txt") != 0 || rename("Bill_temp.txt", "Bill.txt") != 0)
+            {
+                cerr << "Error: Unable to update the inventory file!" << endl;
+            }
+
+            pause();
         }
         else if (choice == 2)
         {
-            close = true;
-            cout << "\tCounting Total Bill" << endl;
+            cout << "Total Amount: " << totalAmount << endl;
+            pause();
+            return;
         }
-        Sleep(5000);
+        else
+        {
+            cout << "Invalid choice. Try again." << endl;
+            pause();
+        }
     }
-    system("cls");
-    cout << endl
-         << endl;
-    cout << "\t Total Bill ----------------- : " << count << endl
-         << endl;
-    cout << "\tThanks For Shopping!" << endl;
-    Sleep(5000);
 }
+
+
 
 int main()
 {
-    Bill b;
-
-    bool exit = false;
-    while (!exit)
+    while (true)
     {
-        system("cls");
-        int val;
+        clearScreen();
+        cout << "Market Billing System" << endl;
+        cout << "1. Add Item to Inventory" << endl;
+        cout << "2. Generate Bill" << endl;
+        cout << "3. Exit" << endl;
+        cout << "Enter your choice: ";
+        int choice;
+        cin >> choice;
 
-        cout << "\tWelcome To Market Billing System" << endl;
-        cout << "\t******************************************************" << endl;
-        cout << "\t\t1.Add Item." << endl;
-        cout << "\t\t2.Print Bill." << endl;
-        cout << "\t\t3.Exit." << endl;
-        cout << "\t\tEnter Choice: ";
-        cin >> val;
-
-        if (val == 1)
+        switch (choice)
         {
-            system("cls");
-            addItem(b);
-            Sleep(3000);
-        }
-
-        else if (val == 2)
-        {
+        case 1:
+            addItem();
+            break;
+        case 2:
             printBill();
-        }
-
-        else if (val == 3)
-        {
-            system("cls");
-            exit = true;
-            cout << "\tVisit Again!" << endl;
-            Sleep(3000);
+            break;
+        case 3:
+            cout << "Thank you for using the system. Goodbye!" << endl;
+            return 0;
+        default:
+            cout << "Invalid choice. Try again." << endl;
+            pause();
         }
     }
 }
